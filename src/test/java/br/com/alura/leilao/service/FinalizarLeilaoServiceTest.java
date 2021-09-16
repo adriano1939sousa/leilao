@@ -23,10 +23,13 @@ class FinalizarLeilaoServiceTest {
 	@Mock
 	private LeilaoDao leilaoDAO;
 	
+	@Mock
+	private EnviadorDeEmails enviadorDeEmails;
+	
 	@BeforeEach
 	public void BeforeEach() {
 		MockitoAnnotations.initMocks(this);
-		this.service = new FinalizarLeilaoService(leilaoDAO);
+		this.service = new FinalizarLeilaoService(leilaoDAO, enviadorDeEmails);
 	}
 	
 
@@ -46,6 +49,40 @@ class FinalizarLeilaoServiceTest {
 		
 		//Internamente ja faz o Assert 
 		Mockito.verify(leilaoDAO).salvar(leilao);
+	}
+	
+	
+	@Test
+	void enviarEmailVencedorLeilao() throws InterruptedException {
+		List<Leilao> leiloes = leiloes();
+		
+		Mockito.when(leilaoDAO.buscarLeiloesExpirados()).thenReturn(leiloes);
+		
+		service.finalizarLeiloesExpirados();
+		
+		Leilao leilao = leiloes.get(0);
+		
+		Lance lanceVencedor = leilao.getLanceVencedor();
+
+		
+		//Internamente ja faz o Assert 
+		Mockito.verify(enviadorDeEmails).enviarEmailVencedorLeilao(lanceVencedor);
+	}
+	
+	
+	@Test
+	void naoEnviarEmailVencedorLeilao() throws InterruptedException {
+		List<Leilao> leiloes = leiloes();
+
+		Mockito.when(leilaoDAO.buscarLeiloesExpirados()).thenReturn(leiloes);
+		Mockito.when(leilaoDAO.salvar(Mockito.any()))
+		.thenThrow(RuntimeException.class);
+		try {
+			service.finalizarLeiloesExpirados();
+			Mockito.verifyNoInteractions(enviadorDeEmails);
+		} catch (Exception e) {
+		}
+
 	}
 	
 	private List<Leilao> leiloes(){
